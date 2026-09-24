@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DedSMP — атмосферный приватный Minecraft сервер</title>
+<meta name="description" content="DedSMP — приватный ванилла+ Minecraft сервер. Уютное комьюнити, ивенты и ноль токсичности. IP: dedsmp.mineserver.xyz">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23FFD400'/><text x='32' y='45' font-family='Arial' font-weight='900' font-size='36' text-anchor='middle' fill='%23000'>D</text></svg>">
+
+<!-- Шрифты (кириллица) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Unbounded:wght@500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- Tailwind CSS -->
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<!-- Lucide Icons -->
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+<style>
+  :root {
+    --yellow: #FFD400;
+    --yellow-soft: rgba(255, 212, 0, 0.5);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #050505;
+    overflow-x: hidden;
+  }
+
+  .font-display { font-family: 'Unbounded', sans-serif; }
+  .font-mono2 { font-family: 'JetBrains Mono', monospace; }
+
+  ::selection { background: var(--yellow); color: #000; }
+
+  /* Скроллбар */
+  ::-webkit-scrollbar { width: 10px; }
+  ::-webkit-scrollbar-track { background: #0a0a0a; }
+  ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 8px; border: 2px solid #0a0a0a; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--yellow); }
+
+  /* ---------- Фон: орбы, сетка, шум ---------- */
+  .orb {
+    position: fixed;
+    border-radius: 9999px;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+    will-change: transform;
+  }
+  .orb-1 {
+    width: 620px; height: 620px;
+    top: -200px; left: -120px;
+    background: radial-gradient(circle, rgba(255,212,0,0.16), transparent 65%);
+    animation: drift1 22s ease-in-out infinite alternate;
+  }
+  .orb-2 {
+    width: 540px; height: 540px;
+    top: 30%; right: -220px;
+    background: radial-gradient(circle, rgba(255,159,10,0.13), transparent 65%);
+    animation: drift2 26s ease-in-out infinite alternate;
+  }
+  .orb-3 {
+    width: 700px; height: 700px;
+    bottom: -300px; left: 22%;
+    background: radial-gradient(circle, rgba(255,212,0,0.10), transparent 65%);
+    animation: drift3 30s ease-in-out infinite alternate;
+  }
+  @keyframes drift1 { from { transform: translate(0,0) scale(1); } to { transform: translate(90px, 70px) scale(1.12); } }
+  @keyframes drift2 { from { transform: translate(0,0) scale(1); } to { transform: translate(-100px, 90px) scale(0.92); } }
+  @keyframes drift3 { from { transform: translate(0,0) scale(1); } to { transform: translate(70px, -80px) scale(1.08); } }
+
+  .bg-grid {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.028) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.028) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(ellipse 90% 70% at 50% 30%, black 30%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 30%, black 30%, transparent 100%);
+  }
+
+  .noise {
+    position: fixed; inset: 0; z-index: 30; pointer-events: none; opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ---------- Стекло ---------- */
+  .glass {
+    background: rgba(255,255,255,0.035);
+    border: 1px solid rgba(255,255,255,0.08);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+  .glass-strong {
+    background: rgba(16,16,16,0.72);
+    border: 1px solid rgba(255,255,255,0.09);
+    backdrop-filter: blur(24px) saturate(140%);
+    -webkit-backdrop-filter: blur(24px) saturate(140%);
+  }
+
+  /* Подсветка карточки за курсором */
+  .spotlight { position: relative; overflow: hidden; }
+  .spotlight::before {
+    content: ''; position: absolute; inset: 0; z-index: 0;
+    background: radial-gradient(520px circle at var(--mx, 50%) var(--my, 50%), rgba(255,212,0,0.09), transparent 45%);
+    opacity: 0; transition: opacity 0.45s ease; pointer-events: none;
+  }
+  .spotlight:hover::before { opacity: 1; }
+  .spotlight > * { position: relative; z-index: 1; }
+
+  .tilt { transition: transform 0.35s cubic-bezier(0.16,1,0.3,1), border-color 0.3s ease, box-shadow 0.3s ease; }
+  .card-hover:hover {
+    border-color: rgba(255,212,0,0.35);
+    box-shadow: 0 20px 60px -20px rgba(255,212,0,0.18), inset 0 0 0 1px rgba(255,212,0,0.08);
+  }
+
+  /* ---------- Кнопки ---------- */
+  .btn-primary {
+    background: var(--yellow);
+    color: #0a0a0a;
+    box-shadow: 0 8px 40px -8px rgba(255,212,0,0.55);
+    transition: transform 0.25s cubic-bezier(0.16,1,0.3,1), box-shadow 0.3s ease, background 0.3s ease;
+  }
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 32px rgba(255,212,0,0.45), 0 16px 60px -10px rgba(255,212,0,0.65);
+    background: #ffe14d;
+  }
+  .btn-primary:active { transform: translateY(0) scale(0.98); }
+
+  .btn-ghost {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.12);
+    backdrop-filter: blur(12px);
+    transition: transform 0.25s cubic-bezier(0.16,1,0.3,1), border-color 0.3s, color 0.3s, background 0.3s, box-shadow 0.3s;
+  }
+  .btn-ghost:hover {
+    border-color: rgba(255,212,0,0.55);
+    color: var(--yellow);
+    box-shadow: 0 0 24px rgba(255,212,0,0.12);
+    transform: translateY(-2px);
+  }
+  .btn-ghost:active { transform: translateY(0) scale(0.98); }
+
+  /* ---------- Типографика-эффекты ---------- */
+  .text-glow { text-shadow: 0 0 34px rgba(255,212,0,0.55), 0 0 90px rgba(255,212,0,0.25); }
+  .watermark {
+    -webkit-text-stroke: 1.5px rgba(255,255,255,0.045);
+    color: transparent;
+    letter-spacing: 0.04em;
+  }
+  .outline-num {
+    -webkit-text-stroke: 1.5px rgba(255,212,0,0.35);
+    color: transparent;
+  }
+
+  /* ---------- Шапка ---------- */
+  #header { transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease; border-bottom: 1px solid transparent; }
+  #header.scrolled {
+    background: rgba(8,8,8,0.78);
+    backdrop-filter: blur(24px) saturate(140%);
+    -webkit-backdrop-filter: blur(24px) saturate(140%);
+    border-bottom-color: rgba(255,255,255,0.07);
+    box-shadow: 0 12px 40px -20px rgba(0,0,0,0.8);
+  }
+  .nav-link { position: relative; transition: color 0.25s; }
+  .nav-link::after {
+    content: ''; position: absolute; left: 50%; bottom: -6px; width: 4px; height: 4px; border-radius: 99px;
+    background: var(--yellow); transform: translateX(-50%) scale(0); transition: transform 0.3s cubic-bezier(0.16,1,0.3,1);
+    box-shadow: 0 0 10px var(--yellow);
+  }
+  .nav-link:hover, .nav-link.active { color: #fff; }
+  .nav-link.active::after { transform: translateX(-50%) scale(1); }
+
+  /* Пульсирующая точка статуса */
+  .pulse-dot { position: relative; }
+  .pulse-dot::after {
+    content: ''; position: absolute; inset: -4px; border-radius: 99px;
+    background: rgba(74,222,128,0.5); animation: ping 1.8s cubic-bezier(0,0,0.2,1) infinite;
+  }
+  @keyframes ping { 75%, 100% { transform: scale(2.4); opacity: 0; } }
+
+  /* ---------- Бегущая строка ---------- */
+  .marquee-track { display: flex; width: max-content; animation: scrollX 26s linear infinite; }
+  .marquee-track:hover { animation-play-state: paused; }
+  @keyframes scrollX { to { transform: translateX(-50%); } }
+  .diamond {
+    width: 8px; height: 8px; transform: rotate(45deg);
+    background: var(--yellow); border-radius: 1.5px;
+    box-shadow: 0 0 12px rgba(255,212,0,0.7);
+    flex-shrink: 0; margin-right: 2.75rem;
+  }
+  .mq {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 0.72rem; letter-spacing: 0.32em; font-weight: 600;
+    color: #71717a; white-space: nowrap; margin-right: 2.75rem;
+  }
+
+  /* ---------- Reveal-анимации ---------- */
+  .reveal {
+    opacity: 0; transform: translateY(44px);
+    transition: opacity 0.9s cubic-bezier(0.16,1,0.3,1), transform 0.9s cubic-bezier(0.16,1,0.3,1);
+  }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+
+  /* Плавное появление героя */
+  .hero-in { animation: heroIn 1.1s cubic-bezier(0.16,1,0.3,1) both; }
+  @keyframes heroIn { from { opacity: 0; transform: translateY(36px); } to { opacity: 1; transform: none; } }
+
+  /* ---------- Toast ---------- */
+  #toast {
+    position: fixed; bottom: 2rem; left: 50%; z-index: 70;
+    transform: translate(-50%, 140%); opacity: 0;
+    transition: transform 0.5s cubic-bezier(0.16,1,0.3,1), opacity 0.4s ease;
+    pointer-events: none;
+  }
+  #toast.show { transform: translate(-50%, 0); opacity: 1; }
+
+  /* Мобильное меню */
+  #mobileMenu { transition: opacity 0.35s ease, visibility 0.35s; }
+  #mobileMenu.open { opacity: 1; visibility: visible; }
+  #mobileMenu:not(.open) { opacity: 0; visibility: hidden; }
+  #mobileMenu .m-link { transform: translateY(24px); opacity: 0; transition: transform 0.5s cubic-bezier(0.16,1,0.3,1), opacity 0.5s; }
+  #mobileMenu.open .m-link { transform: none; opacity: 1; }
+
+  /* Иконка-плитка */
+  .icon-tile { transition: transform 0.35s cubic-bezier(0.16,1,0.3,1), box-shadow 0.35s, background 0.35s; }
+  .group:hover .icon-tile {
+    transform: rotate(-6deg) scale(1.08);
+    background: rgba(255,212,0,0.16);
+    box-shadow: 0 0 28px rgba(255,212,0,0.25);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+    html { scroll-behavior: auto; }
+  }
+</style>
+</head>
+
+<body class="text-zinc-200 antialiased">
+
+<!-- ======== ФОНОВЫЕ СЛОИ ======== -->
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+<div class="bg-grid"></div>
+<canvas id="particles" class="fixed inset-0 z-[1] pointer-events-none"></canvas>
+<div class="noise"></div>
+
+<!-- ======== ШАПКА ======== -->
+<header id="header" class="fixed top-0 left-0 right-0 z-40">
+  <div class="max-w-7xl mx-auto px-5 md:px-8">
+    <div class="flex items-center justify-between h-[72px]">
+
+      <!-- Логотип -->
+      <a href="#home" class="flex items-center gap-3 group">
+        <div class="w-10 h-10 rounded-xl bg-[#FFD400] flex items-center justify-center shadow-[0_0_24px_rgba(255,212,0,0.4)] transition-transform duration-300 group-hover:rotate-[-8deg] group-hover:scale-105">
+          <span class="font-display font-black text-black text-lg leading-none select-none">D</span>
+        </div>
+        <span class="font-display font-bold text-lg tracking-wide text-white">Ded<span class="text-[#FFD400]">SMP</span></span>
+      </a>
+
+      <!-- Навигация (десктоп) -->
+      <nav class="hidden md:flex items-center gap-8">
+        <a href="#home" class="nav-link active text-sm font-medium text-zinc-400">Главная</a>
+        <a href="#about" class="nav-link text-sm font-medium text-zinc-400">О сервере</a>
+        <a href="#rules" class="nav-link text-sm font-medium text-zinc-400">Правила</a>
+        <a href="#join" class="nav-link text-sm font-medium text-zinc-400">Как начать</a>
+      </nav>
+
+      <!-- Кнопка IP + бургер -->
+      <div class="flex items-center gap-3">
+        <button onclick="copyIP()" class="btn-primary hidden sm:inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold cursor-pointer">
+          <i data-lucide="copy" class="w-4 h-4"></i>
+          Копировать IP
+        </button>
+        <button onclick="toggleMenu(true)" aria-label="Открыть меню" class="md:hidden glass rounded-xl p-2.5 text-zinc-300 cursor-pointer">
+          <i data-lucide="menu" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ======== МОБИЛЬНОЕ МЕНЮ ======== -->
+<div id="mobileMenu" class="fixed inset-0 z-[60] bg-black/85 backdrop-blur-2xl flex flex-col">
+  <div class="flex items-center justify-between h-[72px] px-5">
+    <span class="font-display font-bold text-lg text-white">Ded<span class="text-[#FFD400]">SMP</span></span>
+    <button onclick="toggleMenu(false)" aria-label="Закрыть меню" class="glass rounded-xl p-2.5 text-zinc-300 cursor-pointer">
+      <i data-lucide="x" class="w-5 h-5"></i>
+    </button>
+  </div>
+  <nav class="flex-1 flex flex-col items-center justify-center gap-7">
+    <a href="#home" onclick="toggleMenu(false)" class="m-link font-display text-2xl font-bold text-zinc-200 hover:text-[#FFD400] transition-colors" style="transition-delay:.05s">Главная</a>
+    <a href="#about" onclick="toggleMenu(false)" class="m-link font-display text-2xl font-bold text-zinc-200 hover:text-[#FFD400] transition-colors" style="transition-delay:.12s">О сервере</a>
+    <a href="#rules" onclick="toggleMenu(false)" class="m-link font-display text-2xl font-bold text-zinc-200 hover:text-[#FFD400] transition-colors" style="transition-delay:.19s">Правила</a>
+    <a href="#join" onclick="toggleMenu(false)" class="m-link font-display text-2xl font-bold text-zinc-200 hover:text-[#FFD400] transition-colors" style="transition-delay:.26s">Как начать</a>
+    <button onclick="copyIP()" class="m-link btn-primary inline-flex items-center gap-2 rounded-xl px-6 py-3.5 text-sm font-bold mt-4 cursor-pointer" style="transition-delay:.33s">
+      <i data-lucide="copy" class="w-4 h-4"></i>
+      Копировать IP
+    </button>
+  </nav>
+</div>
+
+<main class="relative z-10">
+
+  <!-- ======== HERO ======== -->
+  <section id="home" class="relative min-h-screen flex items-center justify-center overflow-hidden pt-24 pb-16 scroll-mt-28">
+    <!-- Водяной знак -->
+    <div class="absolute inset-0 flex items-center justify-center pointer-events-none select-none" aria-hidden="true">
+      <span class="watermark font-display font-black text-[24vw] leading-none">DEDSMP</span>
+    </div>
+
+    <div class="relative max-w-5xl mx-auto px-5 md:px-8 text-center">
+
+      <!-- Статус -->
+      <div class="hero-in inline-flex items-center gap-2.5 glass rounded-full px-4 py-2 mb-8" style="animation-delay:.05s">
+        <span class="pulse-dot w-2 h-2 rounded-full bg-green-400 inline-block"></span>
+        <span class="text-xs font-semibold tracking-wide text-zinc-300">Сервер онлайн — набор открыт</span>
+      </div>
+
+      <!-- Заголовок -->
+      <h1 class="hero-in font-display font-black text-[17vw] sm:text-7xl md:text-8xl lg:text-[7.5rem] leading-[0.95] tracking-tight text-white" style="animation-delay:.15s">
+        Ded<span class="text-[#FFD400] text-glow">SMP</span>
+      </h1>
+
+      <!-- Подзаголовок -->
+      <p class="hero-in max-w-2xl mx-auto mt-7 text-base md:text-lg text-zinc-400 leading-relaxed" style="animation-delay:.28s">
+        Атмосферный приватный сервер, где важны не цифры онлайна, а люди.
+        Ванильное выживание, живое комьюнити, совместные проекты — и ноль токсичности.
+      </p>
+
+      <!-- Кнопки -->
+      <div class="hero-in flex flex-col sm:flex-row items-center justify-center gap-4 mt-10" style="animation-delay:.4s">
+        <a href="#join" class="btn-primary inline-flex items-center gap-2.5 rounded-2xl px-8 py-4 text-base font-bold w-full sm:w-auto justify-center">
+          Начать играть
+          <i data-lucide="arrow-down" class="w-5 h-5"></i>
+        </a>
+        <button onclick="copyIP()" class="btn-ghost inline-flex items-center gap-3 rounded-2xl px-7 py-4 text-zinc-200 w-full sm:w-auto justify-center cursor-pointer">
+          <i data-lucide="server" class="w-5 h-5 text-[#FFD400]"></i>
+          <span class="font-mono2 text-sm md:text-base font-medium tracking-tight">dedsmp.mineserver.xyz</span>
+          <i data-lucide="copy" class="w-4 h-4 opacity-60"></i>
+        </button>
+      </div>
+      <p class="hero-in text-xs text-zinc-600 mt-4" style="animation-delay:.5s">Нажми на IP — он сразу скопируется</p>
+
+      <!-- Статы -->
+      <div class="hero-in grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl mx-auto mt-14" style="animation-delay:.55s">
+        <div class="glass rounded-2xl px-6 py-5">
+          <div class="font-display font-bold text-xl text-[#FFD400]">1.20+</div>
+          <div class="text-xs text-zinc-500 mt-1.5">Актуальная версия игры</div>
+        </div>
+        <div class="glass rounded-2xl px-6 py-5">
+          <div class="font-display font-bold text-xl text-[#FFD400]">24/7</div>
+          <div class="text-xs text-zinc-500 mt-1.5">Стабильный онлайн без лагов</div>
+        </div>
+        <div class="glass rounded-2xl px-6 py-5">
+          <div class="font-display font-bold text-xl text-[#FFD400]">Whitelist</div>
+          <div class="text-xs text-zinc-500 mt-1.5">Только проверенные игроки</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======== БЕГУЩАЯ СТРОКА ======== -->
+  <div class="relative border-y border-white/5 bg-white/[0.02] backdrop-blur-sm py-5 overflow-hidden">
+    <div class="marquee-track" aria-hidden="true">
+      <span class="mq">ВАНИЛЛА+</span><span class="diamond"></span>
+      <span class="mq">WHITELIST</span><span class="diamond"></span>
+      <span class="mq">24/7 ОНЛАЙН</span><span class="diamond"></span>
+      <span class="mq">ИВЕНТЫ</span><span class="diamond"></span>
+      <span class="mq">БЕЗ ТОКСИКОВ</span><span class="diamond"></span>
+      <span class="mq">СВОЯ АТМОСФЕРА</span><span class="diamond"></span>
+      <span class="mq">ВАНИЛЛА+</span><span class="diamond"></span>
+      <span class="mq">WHITELIST</span><span class="diamond"></span>
+      <span class="mq">24/7 ОНЛАЙН</span><span class="diamond"></span>
+      <span class="mq">ИВЕНТЫ</span><span class="diamond"></span>
+      <span class="mq">БЕЗ ТОКСИКОВ</span><span class="diamond"></span>
+      <span class="mq">СВОЯ АТМОСФЕРА</span><span class="diamond"></span>
+    </div>
+  </div>
+
+  <!-- ======== О СЕРВЕРЕ ======== -->
+  <section id="about" class="relative py-24 md:py-32 scroll-mt-24">
+    <div class="max-w-7xl mx-auto px-5 md:px-8">
+
+      <div class="reveal max-w-2xl">
+        <div class="font-mono2 text-[#FFD400] text-xs tracking-[0.35em] mb-4">// О СЕРВЕРЕ</div>
+        <h2 class="font-display font-bold text-3xl md:text-5xl text-white leading-tight">Почему именно<br><span class="text-[#FFD400]">DedSMP?</span></h2>
+        <p class="text-zinc-400 mt-5 leading-relaxed">Мы не гонимся за тысячами слотов. Мы строим уютное место, куда хочется возвращаться каждый вечер.</p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mt-14">
+
+        <div class="reveal" style="transition-delay:.05s">
+          <div class="group spotlight tilt card-hover glass rounded-3xl p-7 h-full" data-tilt>
+            <div class="icon-tile w-12 h-12 rounded-xl bg-[#FFD400]/10 border border-[#FFD400]/20 flex items-center justify-center mb-6">
+              <i data-lucide="leaf" class="w-6 h-6 text-[#FFD400]"></i>
+            </div>
+            <h3 class="font-display font-bold text-lg text-white mb-3">Ванилла+</h3>
+            <p class="text-sm text-zinc-400 leading-relaxed">Дух классического выживания без поломки баланса. Никаких донат-привилегий — чистый майнкрафт с парой удобных фишек.</p>
+          </div>
+        </div>
+
+        <div class="reveal" style="transition-delay:.15s">
+          <div class="group spotlight tilt card-hover glass rounded-3xl p-7 h-full" data-tilt>
+            <div class="icon-tile w-12 h-12 rounded-xl bg-[#FFD400]/10 border border-[#FFD400]/20 flex items-center justify-center mb-6">
+              <i data-lucide="users" class="w-6 h-6 text-[#FFD400]"></i>
+            </div>
+            <h3 class="font-display font-bold text-lg text-white mb-3">Крутое комьюнити</h3>
+            <p class="text-sm text-zinc-400 leading-relaxed">Небольшой, но дружный состав. Совместные постройки, помощь новичкам и тёплые вечера в голосовом чате.</p>
+          </div>
+        </div>
+
+        <div class="reveal" style="transition-delay:.25s">
+          <div class="group spotlight tilt card-hover glass rounded-3xl p-7 h-full" data-tilt>
+            <div class="icon-tile w-12 h-12 rounded-xl bg-[#FFD400]/10 border border-[#FFD400]/20 flex items-center justify-center mb-6">
+              <i data-lucide="party-popper" class="w-6 h-6 text-[#FFD400]"></i>
+            </div>
+            <h3 class="font-display font-bold text-lg text-white mb-3">Ивенты</h3>
+            <p class="text-sm text-zinc-400 leading-relaxed">Сезонные события, конкурсы построек, совместные рейды на дракона и кастомные активности от администрации.</p>
+          </div>
+        </div>
+
+        <div class="reveal" style="transition-delay:.35s">
+          <div class="group spotlight tilt card-hover glass rounded-3xl p-7 h-full" data-tilt>
+            <div class="icon-tile w-12 h-12 rounded-xl bg-[#FFD400]/10 border border-[#FFD400]/20 flex items-center justify-center mb-6">
+              <i data-lucide="shield-check" class="w-6 h-6 text-[#FFD400]"></i>
+            </div>
+            <h3 class="font-display font-bold text-lg text-white mb-3">Без токсиков</h3>
+            <p class="text-sm text-zinc-400 leading-relaxed">Жёсткая модерация и вход по заявкам. На DedSMP играют только адекватные люди — гриферы просто не пройдут.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ======== ПРАВИЛА ======== -->
+  <section id="rules" class="relative py-24 md:py-32 scroll-mt-24">
+    <div class="max-w-7xl mx-auto px-5 md:px-8">
+
+      <div class="reveal flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+        <div class="max-w-2xl">
+          <div class="font-mono2 text-[#FFD400] text-xs tracking-[0.35em] mb-4">// ПРАВИЛА</div>
+          <h2 class="font-display font-bold text-3xl md:text-5xl text-white leading-tight">Правила простые.<br><span class="text-[#FFD400]">Нарушил — бан.</span></h2>
+        </div>
+        <p class="text-zinc-400 md:max-w-xs md:text-right leading-relaxed">Четыре правила, которые делают сервер уютным для всех. Всё честно и без двойных стандартов.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-14">
+
+        <div class="reveal" style="transition-delay:.05s">
+          <div class="group spotlight tilt card-hover glass rounded-3xl p-8 h-full" data-tilt>
+            <div class="flex items-start justify-between gap-4">
+              <span class="outline-num font-display font-black text-5xl md:text-6xl leading-none select-none">01</span>
+              <div class="icon-tile w-11 h-11 rounded-xl bg-[#FFD400]/10 border border-[#FFD400]/20 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="heart-handshake" class="w-5 h-5 text-[#FFD400]"></i>
+              </div>
+            </div>
+            <h3 class="font-display font-bold text-xl text-white mt-6 mb-3">Уважение к игрокам</h3>
+            <p class="text-sm text-zinc-400 leading-relaxed">Никаких оскорблений, расизма и токсичности. Спор — это нормально, переход на личности — бан.</p>
+          </div>
+        </div>
+
+        <div class="reveal" style="transition-delay:.15s">
+          <div class="group spotlight tilt card-hover glass rounded-3xl p-8 h-full" data-tilt>
+            <div class="flex items-start justify-between gap-4">
+              <span class="outline-num font-display font-black text-5xl md:text-6xl leading-none select-none">02</span>
+              <div class="icon-tile w-11 h-11 rounded-xl bg-[#FFD400]/10 border border-[#FFD400]/20 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="bug-off" class="w-5 h-5 text-[#FFD400]"></i>
+              </div>
+            </div>
+            <h3 class="font-display font-bold text-xl text-white mt-6 mb-3">Честная игра</h3>
+            <p class="text-sm text-zinc-400 leading-relaxed">Любые читы, x-ray, дюпы и багоюз строго запрещены — бан без амнистии. Все в равных условиях.</p>
+          </div>
+        </div>
+
+        <div class="reveal" style="transition-delay:.25s">
+          <div class="group spotlight tilt card-hover glass rounded-3xl p-8 h-full" data-tilt>
+            <div class="flex items-start justify-between gap-4">
+              <span class="outline-num font-display font-black text-5xl md:text-6xl leading-none select-none">03</span>
+              <div class="icon-tile w-11 h-11 rounded-xl bg-[#FFD400]/10 border border-[#FFD400]/20 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="ban" class="w-5 h-5 text-[#FFD400]"></i>
+              </div>
+            </div>
+            <h3 class="font-display font-bold text-xl text-white mt-6 mb-3">Запрет гриферства</h3>
+            <p class="text-sm text-zinc-400 leading-relaxed">Не ломайте чужие постройки и не воруйте ресурсы без разрешения хозяина. Чужое — не трогаем.</p>
+          </div>
+        </div>
+
+        <div class="reveal" style="transition-delay:.35s">
+          <div class="group spotlight tilt card-hover glass rounded-3xl p-8 h-full" data-tilt>
+            <div class="flex items-start justify-between gap-4">
+              <span class="outline-num font-display font-black text-5xl md:text-6xl leading-none select-none">04</span>
+              <div class="icon-tile w-11 h-11 rounded-xl bg-[#FFD400]/10 border border-[#FFD400]/20 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="tree-pine" class="w-5 h-5 text-[#FFD400]"></i>
+              </div>
+            </div>
+            <h3 class="font-display font-bold text-xl text-white mt-6 mb-3">Красота мира</h3>
+            <p class="text-sm text-zinc-400 leading-relaxed">Не оставляйте летающую листву, столбы из земли/булыжника и засыпайте ямы от криперов рядом с чужими базами.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ======== КАК НАЧАТЬ ======== -->
+  <section id="join" class="relative py-24 md:py-32 scroll-mt-24">
+    <div class="max-w-7xl mx-auto px-5 md:px-8">
+
+      <div class="reveal text-center max-w-2xl mx-auto">
+        <div class="font-mono2 text-[#FFD400] text-xs tracking-[0.35em] mb-4">// ПРИСОЕДИНИТЬСЯ</div>
+        <h2 class="font-display font-bold text-3xl md:text-5xl text-white leading-tight">Как начать играть</h2>
+        <p class="text-zinc-400 mt-5 leading-relaxed">Три простых шага отделяют тебя от входа на сервер. Заявки рассматриваем быстро — обычно в течение пары часов.</p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mt-14">
+
+        <!-- Шаг 1 -->
+        <div class="reveal" style="transition-delay:.05s">
+          <div class="spotlight tilt card-hover glass rounded-3xl p-7 h-full flex flex-col" data-tilt>
+            <div class="flex items-center justify-between mb-6">
+              <div class="icon-tile w-11 h-11 rounded-xl bg-[#FFD400]/10 border border-[#FFD400]/20 flex items-center justify-center">
+                <i data-lucide="file-text" class="w-5 h-5 text-[#FFD400]"></i>
+              </div>
+              <span class="font-mono2 text-xs text-zinc-500 tracking-widest">ШАГ 01</span>
+            </div>
+            <h3 class="font-display font-bold text-lg text-white mb-3">Скопируй заявку</h3>
+            <p class="text-sm text-zinc-400 leading-relaxed mb-5">Заполни короткий шаблон — он нужен, чтобы мы узнали тебя чуть лучше.</p>
+
+            <blockquote class="font-mono2 text-[13px] leading-relaxed text-zinc-300 bg-black/45 rounded-2xl p-5 border border-white/5 border-l-2 border-l-[#FFD400] mb-5">
+              1. Ваш ник в Майнкрафте.<br><br>
+              2. Откуда узнали о сервере?<br><br>
+              3. Расскажите немного о себе и вашем стиле игры (строитель, технический игрок, РП).
+            </blockquote>
+
+            <button onclick="copyTemplate()" class="btn-ghost mt-auto inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-zinc-200 cursor-pointer">
+              <i data-lucide="clipboard-copy" class="w-4 h-4"></i>
+              Скопировать шаблон
+            </button>
+          </div>
+        </div>
+
+        <!-- Шаг 2 -->
+        <div class="reveal" style="transition-delay:.15s">
+          <div class="spotlight tilt card-hover glass rounded-3xl p-7 h-full flex flex-col" data-tilt>
+            <div class="flex items-center justify-between mb-6">
+              <div class="icon-tile w-11 h-11 rounded-xl bg-[#FFD400]/10 border border-[#FFD400]/20 flex items-center justify-center">
+                <i data-lucide="send" class="w-5 h-5 text-[#FFD400]"></i>
+              </div>
+              <span class="font-mono2 text-xs text-zinc-500 tracking-widest">ШАГ 02</span>
+            </div>
+            <h3 class="font-display font-bold text-lg text-white mb-3">Напиши создателю</h3>
+            <p class="text-sm text-zinc-400 leading-relaxed mb-6">Отправь заполненную заявку создателю сервера в Telegram. Без собеседований и бюрократии — просто по-человечески.</p>
+
+            <div class="bg-black/45 rounded-2xl p-5 border border-white/5 mb-6">
+              <div class="text-[11px] uppercase tracking-[0.25em] text-zinc-500 mb-2">Telegram</div>
+              <div class="font-mono2 text-lg font-semibold text-[#FFD400]">@yam3dik</div>
+            </div>
+
+            <a href="https://t.me/yam3dik" target="_blank" rel="noopener" class="btn-primary mt-auto inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold">
+              Открыть Telegram
+              <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- Шаг 3 -->
+        <div class="reveal" style="transition-delay:.25s">
+          <div class="spotlight tilt card-hover glass rounded-3xl p-7 h-full flex flex-col" data-tilt>
+            <div class="flex items-center justify-between mb-6">
+              <div class="icon-tile w-11 h-11 rounded-xl bg-[#FFD400]/10 border border-[#FFD400]/20 flex items-center justify-center">
+                <i data-lucide="gamepad-2" class="w-5 h-5 text-[#FFD400]"></i>
+              </div>
+              <span class="font-mono2 text-xs text-zinc-500 tracking-widest">ШАГ 03</span>
+            </div>
+            <h3 class="font-display font-bold text-lg text-white mb-3">Заходи играть</h3>
+            <p class="text-sm text-zinc-400 leading-relaxed mb-6">Дождись одобрения заявки, запускай Minecraft версии 1.20+ и добавляй сервер в список. Увидимся в игре!</p>
+
+            <div class="bg-black/45 rounded-2xl p-5 border border-white/5 mb-6">
+              <div class="text-[11px] uppercase tracking-[0.25em] text-zinc-500 mb-2">IP сервера</div>
+              <div class="font-mono2 text-base md:text-lg font-semibold text-white break-all">dedsmp.mineserver.xyz</div>
+            </div>
+
+            <button onclick="copyIP()" class="btn-ghost mt-auto inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-zinc-200 cursor-pointer">
+              <i data-lucide="copy" class="w-4 h-4"></i>
+              Скопировать IP
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Финальный CTA -->
+      <div class="reveal mt-16" style="transition-delay:.1s">
+        <div class="spotlight glass-strong rounded-[2rem] px-8 py-12 md:px-16 md:py-16 text-center relative overflow-hidden">
+          <div class="absolute -top-24 left-1/2 -translate-x-1/2 w-[480px] h-[280px] rounded-full bg-[#FFD400]/15 blur-[100px] pointer-events-none" aria-hidden="true"></div>
+          <h2 class="font-display font-bold text-2xl md:text-4xl text-white leading-tight">Готов начать своё <span class="text-[#FFD400] text-glow">выживание?</span></h2>
+          <p class="text-zinc-400 mt-4 max-w-lg mx-auto leading-relaxed">Подай заявку сегодня — а уже вечером ставь первый факел на DedSMP.</p>
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mt-9">
+            <a href="https://t.me/yam3dik" target="_blank" rel="noopener" class="btn-primary inline-flex items-center gap-2.5 rounded-2xl px-8 py-4 text-base font-bold w-full sm:w-auto justify-center">
+              <i data-lucide="send" class="w-5 h-5"></i>
+              Подать заявку
+            </a>
+            <button onclick="copyIP()" class="btn-ghost inline-flex items-center gap-3 rounded-2xl px-7 py-4 text-zinc-200 w-full sm:w-auto justify-center cursor-pointer">
+              <span class="font-mono2 text-sm md:text-base font-medium tracking-tight">dedsmp.mineserver.xyz</span>
+              <i data-lucide="copy" class="w-4 h-4 opacity-60"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<!-- ======== ФУТЕР ======== -->
+<footer class="relative z-10 border-t border-white/5 bg-black/40 backdrop-blur-xl">
+  <div class="max-w-7xl mx-auto px-5 md:px-8 py-14">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+
+      <div>
+        <a href="#home" class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-[#FFD400] flex items-center justify-center">
+            <span class="font-display font-black text-black text-base leading-none select-none">D</span>
+          </div>
+          <span class="font-display font-bold text-lg text-white">Ded<span class="text-[#FFD400]">SMP</span></span>
+        </a>
+        <p class="text-sm text-zinc-500 mt-4 leading-relaxed max-w-xs">Атмосферный приватный сервер для тех, кто ценит уют, честную игру и хорошую компанию.</p>
+      </div>
+
+      <div>
+        <div class="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-4">Навигация</div>
+        <nav class="flex flex-col gap-2.5">
+          <a href="#home" class="text-sm text-zinc-400 hover:text-[#FFD400] transition-colors w-fit">Главная</a>
+          <a href="#about" class="text-sm text-zinc-400 hover:text-[#FFD400] transition-colors w-fit">О сервере</a>
+          <a href="#rules" class="text-sm text-zinc-400 hover:text-[#FFD400] transition-colors w-fit">Правила</a>
+          <a href="#join" class="text-sm text-zinc-400 hover:text-[#FFD400] transition-colors w-fit">Как начать</a>
+        </nav>
+      </div>
+
+      <div>
+        <div class="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-4">Контакты</div>
+        <div class="flex flex-col gap-2.5">
+          <a href="https://t.me/yam3dik" target="_blank" rel="noopener" class="inline-flex items-center gap-2.5 text-sm text-zinc-400 hover:text-[#FFD400] transition-colors w-fit">
+            <i data-lucide="send" class="w-4 h-4"></i> Telegram: @yam3dik
+          </a>
+          <button onclick="copyIP()" class="inline-flex items-center gap-2.5 text-sm text-zinc-400 hover:text-[#FFD400] transition-colors w-fit cursor-pointer">
+            <i data-lucide="server" class="w-4 h-4"></i> <span class="font-mono2">dedsmp.mineserver.xyz</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="border-t border-white/5 mt-12 pt-7 flex flex-col md:flex-row items-center justify-between gap-4">
+      <p class="text-xs text-zinc-600">© 2025 DedSMP. Сделано с любовью к ванилле.</p>
+      <p class="text-xs text-zinc-700 text-center md:text-right">Не является официальным продуктом Minecraft. Не одобрено и не связано с Mojang / Microsoft.</p>
+    </div>
+  </div>
+</footer>
+
+<!-- ======== TOAST ======== -->
+<div id="toast" role="status" aria-live="polite">
+  <div class="flex items-center gap-3 bg-[#FFD400] text-black rounded-full pl-2 pr-6 py-2 shadow-[0_0_40px_rgba(255,212,0,0.5),0_20px_60px_-15px_rgba(0,0,0,0.8)]">
+    <div class="w-9 h-9 rounded-full bg-black flex items-center justify-center flex-shrink-0">
+      <i data-lucide="check" class="w-5 h-5 text-[#FFD400]"></i>
+    </div>
+    <span id="toastMsg" class="text-sm font-bold whitespace-nowrap">IP сервера скопирован!</span>
+  </div>
+</div>
+
+<script>
+  /* ===================== КОНСТАНТЫ ===================== */
+  const SERVER_IP = 'dedsmp.mineserver.xyz';
+  const TEMPLATE = [
+    '1. Ваш ник в Майнкрафте.',
+    '2. Откуда узнали о сервере?',
+    '3. Расскажите немного о себе и вашем стиле игры (строитель, технический игрок, РП).'
+  ].join('\n');
+
+  /* ===================== КОПИРОВАНИЕ + TOAST ===================== */
+  let toastTimer = null;
+
+  function showToast(message) {
+    const toast = document.getElementById('toast');
+    document.getElementById('toastMsg').textContent = message;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+  }
+
+  function fallbackCopy(text, done) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) { /* noop */ }
+    document.body.removeChild(ta);
+    done();
+  }
+
+  function copyText(text, message) {
+    const done = () => showToast(message);
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+    } else {
+      fallbackCopy(text, done);
+    }
+  }
+
+  function copyIP() { copyText(SERVER_IP, 'IP сервера скопирован!'); }
+  function copyTemplate() { copyText(TEMPLATE, 'Шаблон заявки скопирован!'); }
+
+  /* ===================== МОБИЛЬНОЕ МЕНЮ ===================== */
+  function toggleMenu(open) {
+    const menu = document.getElementById('mobileMenu');
+    menu.classList.toggle('open', open);
+    document.body.style.overflow = open ? 'hidden' : '';
+  }
+
+  /* ===================== ШАПКА ПРИ СКРОЛЛЕ + СКРОЛЛСПАЙ ===================== */
+  const header = document.getElementById('header');
+  const navLinks = Array.from(document.querySelectorAll('.nav-link'));
+  const spySections = navLinks
+    .map(link => ({ link, section: document.querySelector(link.getAttribute('href')) }))
+    .filter(item => item.section);
+
+  function onScroll() {
+    header.classList.toggle('scrolled', window.scrollY > 16);
+
+    const pos = window.scrollY + window.innerHeight * 0.35;
+    let current = spySections[0];
+    for (const item of spySections) {
+      if (item.section.offsetTop <= pos) current = item;
+    }
+    navLinks.forEach(l => l.classList.toggle('active', current && l === current.link));
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  /* ===================== REVEAL-АНИМАЦИИ ===================== */
+  const io = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        io.unobserve(entry.target);
+      }
+    }
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+  /* ===================== SPOTLIGHT + TILT КАРТОЧЕК ===================== */
+  document.querySelectorAll('.spotlight').forEach(card => {
+    card.addEventListener('mousemove', (e) => {
+      const r = card.getBoundingClientRect();
+      card.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+      card.style.setProperty('--my', (e.clientY - r.top) + 'px');
+    });
+  });
+
+  if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+    document.querySelectorAll('[data-tilt]').forEach(card => {
+      card.addEventListener('mousemove', (e) => {
+        const r = card.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width - 0.5;
+        const y = (e.clientY - r.top) / r.height - 0.5;
+        card.style.transform =
+          'perspective(900px) rotateX(' + (-y * 4.5).toFixed(2) + 'deg) rotateY(' + (x * 4.5).toFixed(2) + 'deg) translateY(-4px)';
+      });
+      card.addEventListener('mouseleave', () => { card.style.transform = ''; });
+    });
+  }
+
+  /* ===================== ЧАСТИЦЫ (CANVAS) ===================== */
+  (function initParticles() {
+    const canvas = document.getElementById('particles');
+    const ctx = canvas.getContext('2d');
+    let w = 0, h = 0, particles = [];
+
+    function resize() {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+      const count = Math.min(90, Math.max(30, Math.floor(w / 18)));
+      particles = Array.from({ length: count }, () => ({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        r: Math.random() * 1.7 + 0.4,
+        s: Math.random() * 0.3 + 0.07,
+        phase: Math.random() * Math.PI * 2,
+        alpha: Math.random() * 0.45 + 0.1
+      }));
+    }
+
+    function tick(now) {
+      ctx.clearRect(0, 0, w, h);
+      for (const p of particles) {
+        p.y -= p.s;
+        p.x += Math.sin(p.y * 0.008 + p.phase) * 0.18;
+        if (p.y < -12) { p.y = h + 12; p.x = Math.random() * w; }
+        const twinkle = 0.55 + 0.45 * Math.sin(now * 0.0018 + p.phase * 3);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 212, 0, ' + (p.alpha * twinkle * 0.55).toFixed(3) + ')';
+        ctx.fill();
+      }
+      requestAnimationFrame(tick);
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+    requestAnimationFrame(tick);
+  })();
+
+  /* ===================== ИКОНКИ ===================== */
+  lucide.createIcons();
+</script>
+
+</body>
+</html>
